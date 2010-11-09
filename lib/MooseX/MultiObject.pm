@@ -7,6 +7,7 @@ use MooseX::Types::Set::Object;
 use MooseX::APIRole::Internals qw(create_role_for);
 use Moose::Util qw(does_role with_traits);
 use Moose::Meta::TypeConstraint::Role;
+use Moose::Meta::TypeConstraint::Class;
 use MooseX::MultiObject::Role;
 use MooseX::MultiObject::Meta::Method::MultiDelegation;
 use Set::Object qw(set);
@@ -42,24 +43,28 @@ sub setup_multiobject {
     confess 'you must not specify both a class and a role'
         if exists $args{class} && exists $args{role};
 
-    my $role;
+    my ($role, $tc) = @_;
+
     if(my $class_name = $args{class}){
         my $class = blessed $class_name ? $class_name : $class_name->meta;
         $role = does_role( $class, 'MooseX::APIRole::Meta' ) ?
             $class->api_role : create_role_for($class);
+        $tc = Moose::Meta::TypeConstraint::Class->new( class => $class_name );
     }
     elsif(my $role_name = $args{role}){
         $role = blessed $role_name ? $role_name : $role_name->meta;
         confess "provided role '$role' is not a Moose::Meta::Role!"
             unless $role->isa('Moose::Meta::Role');
-
+        $tc = Moose::Meta::TypeConstraint::Role->new( role => $role );
     }
     else {
         confess 'you must specify either a class or a role'; # OR DIE
     }
 
-    my $tc = Moose::Meta::TypeConstraint::Role->new( role => $role );
-    # $meta->set_set_type_constraint($tc);
+    $tc->message(sub {
+        my $arg = shift;
+        return "'$arg' is not an object that can be added to this multiobject"
+    });
 
     # add adder method -- named verbosely for maximum
     # not-conflicting-with-stuff
