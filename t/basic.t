@@ -56,4 +56,25 @@ for(1..2){
 ok does_role('Set', 'MooseX::MultiObject::Role'), 'does multiobject role';
 ok does_role('Set', 'Role'), 'does { role => ... } role';
 
+{ package Class;
+  use Moose;
+  use MooseX::APIRole;
+  sub foo {}
+  make_api_role 'Class::API';
+}
+
+{ package Multi::Class;
+  use Moose;
+  use MooseX::MultiObject;
+
+  setup_multiobject (
+      class => 'Class',
+  );
+
+  __PACKAGE__->meta->make_immutable;
+}
+
+ok does_role('Multi::Class', 'Class::API'), 'Multi::Class does the API role';
+can_ok 'Multi::Class', 'foo';
+
 done_testing;
